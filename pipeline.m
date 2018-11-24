@@ -4,10 +4,9 @@ load data_MC3.mat
 load data_mRNA.mat
 load data_PRO.mat
 
+%% 2. clean data
 raw_values_mRNA = table2array(data_mRNA(2:end,2:end));
 raw_values_PRO = table2array(data_PRO(2:end,2:end));
-
-%% 2. clean data
 flag_normalize_mRNA = false;
 flag_normalize_PRO = false;
 % 2.a. impute data
@@ -26,10 +25,8 @@ end
 
 % 2.b. remove outlier samples
 c_dispersion = 3; %dispersion constant
-%
 non_outliers_mRNA = iqr(values_mRNA) <= mean(values_mRNA)+c_dispersion*std(values_mRNA);
 values_mRNA = values_mRNA(:,non_outliers_mRNA);
-%
 non_outliers_PRO = iqr(values_PRO) <= mean(values_PRO)+c_dispersion*std(values_PRO);
 values_PRO = values_PRO(:,non_outliers_PRO);
 
@@ -49,10 +46,31 @@ if flag_normalize_PRO
     log_std_norm_error_PRO = log(mean(abs(std(values_PRO)-1)))
 end
 
-
-%% 3. 
-
-
+%% 3. deconvolution methods
+%% 3.a. tumor transcriptome
+% xCell, performs cell type enrichment analysis from gene expression data for 64 
+% immune and stroma cell types by reducing associations between closely related cell types
+% installation\\$ devtools::install_github('dviraran/xCell')
+%
+% pipe data to xCell
+data_mRNA_cleaned = data_mRNA;
+data_mRNA_cleaned(2:end,2:end) = array2table(values_mRNA);
+writetable(data_mRNA_cleaned,'BRCA_mRNA_formatted_normalized_cleaned.txt','Delimiter','\t');
+%
+% script to call xCell 
+fid = fopen('call_xCell.R','w');
+fprintf(fid,[
+    'library(xCell)\n' ...
+    'expression_matrix = read.table("BRCA_mRNA_formatted_normalized_cleaned.txt",header=TRUE,row.names=1, as.is=TRUE)\n' ...
+    'xCell_result = xCellAnalysis(expression_matrix)\n' ...
+    'write.table(xCell_result,file = "xCell_result_BRCA_mRNA_formatted_normalized_cleaned.txt",sep="\t",quote=FALSE)\n' ...
+    'return(xCell_result)' ...
+    ]);
+fclose(fid); 
+% grand user permission of file executions
+system('chmod u+x call_xCell.R xCell-master/R/xCell.R') 
+% call xCell
+system('/usr/local/bin/Rscript call_xCell.R');
 
 
 
