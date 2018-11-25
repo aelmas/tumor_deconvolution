@@ -1,4 +1,3 @@
-clear; close all; clc
 %% 1. Load data
 load data_MC3.mat
 load data_mRNA.mat
@@ -35,15 +34,11 @@ values_PRO = values_PRO(:,non_outliers_PRO);
 if flag_normalize_mRNA
     values_mRNA = values_mRNA-repmat(mean(values_mRNA),size(values_mRNA,1),1); % 0-mean
     values_mRNA = values_mRNA./repmat(std(values_mRNA),size(values_mRNA,1),1); % 1-SD
-    log_mean_norm_error_mRNA = log(mean(abs(mean(values_mRNA)-0)))
-    log_std_norm_error_mRNA = log(mean(abs(std(values_mRNA)-1)))
 end
 % PRO | samples normalized | 0-mean, 1-SD | 
 if flag_normalize_PRO
     values_PRO = values_PRO-repmat(mean(values_PRO),size(values_PRO,1),1); % 0-mean
     values_PRO = values_PRO./repmat(std(values_PRO),size(values_PRO,1),1); % 1-SD
-    log_mean_norm_error_PRO = log(mean(abs(mean(values_PRO)-0)))
-    log_std_norm_error_PRO = log(mean(abs(std(values_PRO)-1)))
 end
 % Check distributions
 figure(1);
@@ -128,24 +123,31 @@ title('BRCA Proteome cell enrichments')
 %% 4. Analyze tumor deconvolution from transcriptome vs from proteome
 % test the null hypothesis (H) that the two immune profiles inferred from
 %    transcriptome and from proteome are not significantly different for the
-%    same group of samples
+%    same group of samples, are coming from distributions with equal means
 % map sample IDs
 [~, im_xv, ip_xv] = intersect(data_mRNA_cleaned_xCell_result.Properties.VariableNames,data_PRO_cleaned_xCell_result.Properties.VariableNames);
 % H = 1 means that the null hypothesis can be rejected at 5% significance level
 H_cell_types = ttest2(table2array(data_mRNA_cleaned_xCell_result(:,im_xv))', table2array(data_PRO_cleaned_xCell_result(:,ip_xv))')';
 fprintf('|\n|\tFor the same group of samples, %u out of %u cell-types inferred differently.\n|\n', sum(H_cell_types), length(H_cell_types));
-% The following cell-types are inferred similarly when using transcriptome or proteome data
-data_mRNA_cleaned_xCell_result.Properties.RowNames(H_cell_types==0)
+data_xCell_result_similar_mRNA_PRO = data_mRNA_cleaned_xCell_result.Properties.RowNames(H_cell_types==0);
+% calculate correlations
+cros_corr_cell_similar_mRNA_PRO = corr(table2array(data_PRO_cleaned_xCell_result(H_cell_types==0,ip_xv))',table2array(data_mRNA_cleaned_xCell_result(H_cell_types==0,im_xv))');
+[corr_vals, ic_s] = sort(abs(diag(cros_corr_cell_similar_mRNA_PRO)),'descend');
+ind_H0 = find(H_cell_types==0);
+% The following 14 cell-types are inferred similarly when using transcriptome or proteome data
+data_xCell_result_similar_mRNA_PRO(ic_s)
 
-% inferred_cell_type_profiles = cell(size(data_mRNA_cleaned_xCell_result,1),1);
-% for c = 1:length(inferred_cell_type_profiles)
-%     
-% end
+figure(4);
+heatmap(data_mRNA_cleaned_xCell_result.Properties.VariableNames(im_xv), data_mRNA_cleaned_xCell_result.Properties.RowNames(ind_H0(ic_s)), table2array(data_mRNA_cleaned_xCell_result(ind_H0(ic_s),im_xv)))
+title('BRCA Transcriptome, enrichments for 14 cells')
+figure(5);
+heatmap(data_PRO_cleaned_xCell_result.Properties.VariableNames(ip_xv), data_PRO_cleaned_xCell_result.Properties.RowNames(ind_H0(ic_s)), table2array(data_PRO_cleaned_xCell_result(ind_H0(ic_s),ip_xv)))
+title('BRCA Proteome, enrichments for 14 cells')
 
-%% 5. Proteome enrichment patterns
+%% 5. Proteome enrichment patterns due to mutation
 % 5.a. Analyze proteomes of mutation carriers vs non-carriers in key driver genes
 %    for each key driver gene: define carriers and non-carriers, compare their proteomes
-%    then generate protein profile for that mutation showing significance between carriers vs non-carriers
+%    then build protein profile for that mutation showing significance between carriers vs non-carriers
 protein_profiles = cell(size(data_MC3,1),1);
 for k = 1:size(data_MC3,1) %for each mutation gene
     % define carriers and non-carriers of the mutation in mutation_gene(k) in MC3 data
@@ -164,7 +166,7 @@ for k = 1:size(data_MC3,1) %for each mutation gene
 end
 % 5.b. Analyze proteome-inferred cell types of mutation carriers vs non-carriers in key driver genes
 %    for each key driver gene: define carriers and non-carriers, compare their
-%    proteome-inferred cell enrichments then generate cell-type profile for that mutation showing significance between carriers vs non-carriers
+%    proteome-inferred cell enrichments then build cell-type profile for that mutation showing significance between carriers vs non-carriers
 proteome_cell_type_profiles = cell(size(data_MC3,1),1);
 for k = 1:size(data_MC3,1) %for each mutation gene
     % define carriers and non-carriers of the mutation in mutation_gene(k) in MC3 data
@@ -202,10 +204,10 @@ proteome_cell_type_profiles{k}.cell_types
 %    in the BRCA1 gene which may alter the production of those 527 proteins.
 % ------------------------------------------------------------------------
  
-%% 6. mRNA expression patterns
+%% 6. mRNA expression patterns due to mutation
 % 6.a. Analyze mRNA-level gene expressions of mutation carriers vs non-carriers in key driver genes
 %    for each key driver gene: define carriers and non-carriers, compare their mRNA expressions
-%    then generate mRNA profile for that mutation showing significance between carriers vs non-carriers
+%    then build mRNA profile for that mutation showing significance between carriers vs non-carriers
 mRNA_profiles = cell(size(data_MC3,1),1);
 for k = 1:size(data_MC3,1) %for each mutation gene
     % define carriers and non-carriers of the mutation in mutation_gene(k) in MC3 data
@@ -224,7 +226,7 @@ for k = 1:size(data_MC3,1) %for each mutation gene
 end
 % 6.b. Analyze mRNA-inferred cell types of mutation carriers vs non-carriers in key driver genes
 %    for each key driver gene: define carriers and non-carriers, compare their
-%    mRNA-inferred cell enrichments then generate cell-type profile for that mutation showing significance between carriers vs non-carriers
+%    mRNA-inferred cell enrichments then build cell-type profile for that mutation showing significance between carriers vs non-carriers
 mRNA_cell_type_profiles = cell(size(data_MC3,1),1);
 for k = 1:size(data_MC3,1) %for each mutation gene
     % define carriers and non-carriers of the mutation in mutation_gene(k) in MC3 data
@@ -253,6 +255,7 @@ end
 % Interpretation of analyses "5.a" and "6.a":
 % ------------------------------------------------------------------------
 % For k=6, the following "79 mRNA/protein" products are both altered 
-%    due to mutation in BRCA1 gene (but in different cell-types):
+%    due to mutation in BRCA1 gene (but not necessarily in the same cell-types):
 intersect(mRNA_profiles{6}.mRNAs,protein_profiles{6}.proteins)
 % ------------------------------------------------------------------------
+ 
