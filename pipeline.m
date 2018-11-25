@@ -9,7 +9,7 @@ raw_values_PRO = table2array(data_PRO);
 flag_normalize_mRNA = false;
 flag_normalize_PRO = false;
 % 2.a. Impute data
-if ~isempty(find(isnan(raw_values_mRNA), 1))
+if ~isempty(find(isnan(raw_values_mRNA), 1)) 
     tic; values_mRNA = knnimpute(raw_values_mRNA); toc;
     flag_normalize_mRNA = true;
 else
@@ -149,6 +149,7 @@ title('BRCA Proteome, enrichments for 14 cells')
 %    for each key driver gene: define carriers and non-carriers, compare their proteomes
 %    then build protein profile for that mutation showing significance between carriers vs non-carriers
 protein_profiles = cell(size(data_MC3,1),1);
+signif_mut = false(1,size(data_MC3,1));
 for k = 1:size(data_MC3,1) %for each mutation gene
     % define carriers and non-carriers of the mutation in mutation_gene(k) in MC3 data
     carrier_true = table2array(data_MC3(k,:))~='wt';
@@ -156,6 +157,7 @@ for k = 1:size(data_MC3,1) %for each mutation gene
     [~, ip_carrier, ~] = intersect(data_PRO_cleaned.Properties.VariableNames, data_MC3.Properties.VariableNames(carrier_true));
     [~, ip_noncarrier, ~] = intersect(data_PRO_cleaned.Properties.VariableNames, data_MC3.Properties.VariableNames(~carrier_true));
     if min(length(ip_carrier),length(ip_noncarrier)) > 1
+        signif_mut(k) = true;
         % test the null hypothesis (H) that the proteomes of the mutation carriers and non-carriers in mutation_gene(k) are not significantly different
         % H = 1 means that the null hypothesis can be rejected at 5% significance level
         H_proteins = ttest2(table2array(data_PRO_cleaned(:,ip_carrier))', table2array(data_PRO_cleaned(:,ip_noncarrier))')';
@@ -203,7 +205,57 @@ proteome_cell_type_profiles{k}.cell_types
 % This might suggest that these cell-types might be commonly exposed to mutations 
 %    in the BRCA1 gene which may alter the production of those 527 proteins.
 % ------------------------------------------------------------------------
- 
+% write profiles
+fid = fopen('Supplementary_data.xls','w');
+fprintf(fid,['Supplementary data. Each column represents the analysis of a ' ...
+    'different gene mutation.\n The results include\n\t i) the group of cell types ' ...
+    'that exhibit significanly different enrichment patterns between the mutation ' ...
+    'carriers and non-carriers\n\t ii) the group of proteins that exhibit ' ...
+    'significanly different expression patterns between the mutation carriers ' ...
+    'and non-carriers \n\n\n']);
+l_pctp_ct = zeros(length(find(signif_mut)),1);
+l_pp_p = zeros(length(find(signif_mut)),1);
+for k = find(signif_mut)
+    fprintf(fid,'Mutation gene:\t');
+    l_pctp_ct(k) = length(proteome_cell_type_profiles{k}.cell_types);
+    l_pp_p(k) = length(protein_profiles{k}.proteins);
+end
+fprintf(fid,'\n');
+for k = find(signif_mut)
+    fprintf(fid,'%s\t',proteome_cell_type_profiles{k}.mutation_gene{:});
+end
+fprintf(fid,'\n\n');
+for k = find(signif_mut)
+    fprintf(fid,'Cell types:\t');
+end
+fprintf(fid,'\n');
+for r = 1:max(l_pctp_ct)
+    for k = find(signif_mut)
+        if r <= l_pctp_ct(k)
+            fprintf(fid,'%s\t',proteome_cell_type_profiles{k}.cell_types{r});
+        else
+            fprintf(fid,'\t');            
+        end
+    end
+    fprintf(fid,'\n');
+end    
+fprintf(fid,'\n\n');
+for k = find(signif_mut)
+    fprintf(fid,'Proteins:\t');
+end
+fprintf(fid,'\n');
+for r = 1:max(l_pp_p)
+    for k = find(signif_mut)
+        if r <= l_pp_p(k)
+            fprintf(fid,'%s\t',protein_profiles{k}.proteins{r});
+        else
+            fprintf(fid,'\t');            
+        end
+    end
+    fprintf(fid,'\n');
+end    
+fclose(fid);
+
 %% 6. mRNA expression patterns due to mutation
 % 6.a. Analyze mRNA-level gene expressions of mutation carriers vs non-carriers in key driver genes
 %    for each key driver gene: define carriers and non-carriers, compare their mRNA expressions
