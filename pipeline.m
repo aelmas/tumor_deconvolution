@@ -58,7 +58,7 @@ subplot(212); boxplot(values_PRO); ylabel('BRCA Proteome');
 %
 % pipe data to xCell
 data_mRNA_cleaned = array2table(values_mRNA);
-data_mRNA_cleaned.Properties.VariableNames = data_mRNA.Properties.VariableNames;
+data_mRNA_cleaned.Properties.VariableNames = data_mRNA.Properties.VariableNames(non_outliers_mRNA);
 data_mRNA_cleaned.Properties.RowNames = data_mRNA.Properties.RowNames;
 writetable(data_mRNA_cleaned,'BRCA_mRNA_formatted_normalized_cleaned.txt','Delimiter','\t','WriteRowNames',true);
 % script to call xCell 
@@ -72,7 +72,7 @@ fprintf(fid,[
     'write.table(xCell_result,file = "xCell_result_BRCA_mRNA_formatted_normalized_cleaned.txt",sep="\t",quote=FALSE)\n' ... 
     ]);
 fclose(fid); 
-% grand user permission of file executions
+% grant user permission of file executions
 system('chmod u+x call_xCell_mRNA.R xCell-master/R/xCell.R') 
 % call xCell
 system('/usr/local/bin/Rscript call_xCell_mRNA.R');
@@ -93,7 +93,7 @@ length(intersect(data_mRNA.Properties.RowNames, data_PRO.Properties.RowNames))
 %
 % pipe data to xCell
 data_PRO_cleaned = array2table(values_PRO);
-data_PRO_cleaned.Properties.VariableNames = data_PRO.Properties.VariableNames;
+data_PRO_cleaned.Properties.VariableNames = data_PRO.Properties.VariableNames(non_outliers_PRO);
 data_PRO_cleaned.Properties.RowNames = data_PRO.Properties.RowNames;
 writetable(data_PRO_cleaned,'BRCA_PRO_formatted_normalized_cleaned.txt','Delimiter','\t','WriteRowNames',true);
 % script to call xCell 
@@ -107,7 +107,7 @@ fprintf(fid,[
     'write.table(xCell_result,file = "xCell_result_BRCA_PRO_formatted_normalized_cleaned.txt",sep="\t",quote=FALSE)\n' ... 
     ]);
 fclose(fid); 
-% grand user permission of file executions
+% grant user permission of file executions
 system('chmod u+x call_xCell_PRO.R xCell-master/R/xCell.R') 
 % call xCell
 system('/usr/local/bin/Rscript call_xCell_PRO.R');
@@ -128,7 +128,7 @@ title('BRCA Proteome cell enrichments')
 [~, im_xv, ip_xv] = intersect(data_mRNA_cleaned_xCell_result.Properties.VariableNames,data_PRO_cleaned_xCell_result.Properties.VariableNames);
 % H = 1 means that the null hypothesis can be rejected at 5% significance level
 H_cell_types = ttest2(table2array(data_mRNA_cleaned_xCell_result(:,im_xv))', table2array(data_PRO_cleaned_xCell_result(:,ip_xv))')';
-fprintf('|\n|\tFor the same group of samples, %u out of %u cell-types inferred differently.\n|\n', sum(H_cell_types), length(H_cell_types));
+fprintf('|\n|\tFor the same group of samples, %u out of %u cell-types were inferred differently.\n|\n', sum(H_cell_types), length(H_cell_types));
 data_xCell_result_similar_mRNA_PRO = data_mRNA_cleaned_xCell_result.Properties.RowNames(H_cell_types==0);
 % calculate correlations
 cros_corr_cell_similar_mRNA_PRO = corr(table2array(data_PRO_cleaned_xCell_result(H_cell_types==0,ip_xv))',table2array(data_mRNA_cleaned_xCell_result(H_cell_types==0,im_xv))');
@@ -161,7 +161,7 @@ for k = 1:size(data_MC3,1) %for each mutation gene
         % test the null hypothesis (H) that the proteomes of the mutation carriers and non-carriers in mutation_gene(k) are not significantly different
         % H = 1 means that the null hypothesis can be rejected at 5% significance level
         H_proteins = ttest2(table2array(data_PRO_cleaned(:,ip_carrier))', table2array(data_PRO_cleaned(:,ip_noncarrier))')';
-        % any protein whose expression significantly differ (H=1) between mutation carriers and non-carriers
+        % any protein whose expressions significantly differ (H=1) between mutation carriers and non-carriers
         protein_profiles{k}.proteins =  data_PRO_cleaned.Properties.RowNames(H_proteins==1);
         protein_profiles{k}.mutation_gene = data_MC3.Properties.RowNames(k);
     end
@@ -184,7 +184,8 @@ for k = 1:size(data_MC3,1) %for each mutation gene
         proteome_cell_type_profiles{k}.cell_types =  data_PRO_cleaned_xCell_result.Properties.RowNames(H_cell_types==1);
         proteome_cell_type_profiles{k}.mutation_gene = data_MC3.Properties.RowNames(k);
     end
-end
+end  
+
 % ------------------------------------------------------------------------
 % Interpretation of analyses "5.a" and "5.b":
 % ------------------------------------------------------------------------
